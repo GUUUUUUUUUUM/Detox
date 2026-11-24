@@ -12,19 +12,38 @@ android {
         applicationId = "com.mingming.detox"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1"
+        // GitHub Actions 실행 번호를 버전으로 써서, 앱이 새 빌드를 알아볼 수 있게 한다.
+        val run = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = run
+        versionName = "build-$run"
+    }
+
+    // 모든 빌드를 같은 키로 서명해야 지우지 않고 덮어쓰기 업데이트가 된다.
+    signingConfigs {
+        create("personal") {
+            storeFile = file("detox.jks")
+            storePassword = "detox-personal"
+            keyAlias = "detox"
+            keyPassword = "detox-personal"
+        }
     }
 
     buildTypes {
-        release { isMinifyEnabled = false }
+        debug { signingConfig = signingConfigs.getByName("personal") }
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("personal")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
 }
 
 dependencies {

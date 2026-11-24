@@ -18,7 +18,8 @@ import androidx.compose.ui.unit.sp
 class BlockActivity : ComponentActivity() {
 
     companion object {
-        const val EXTRA_PKG = "pkg"
+        const val EXTRA_LABEL = "label"
+        const val EXTRA_GO_HOME = "go_home"
         const val EXTRA_REASON = "reason"
         const val REASON_LOCKED = "locked"
         const val REASON_LIMIT = "limit"
@@ -26,18 +27,17 @@ class BlockActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val pkg = intent.getStringExtra(EXTRA_PKG) ?: ""
+        val label = intent.getStringExtra(EXTRA_LABEL) ?: ""
         val reason = intent.getStringExtra(EXTRA_REASON) ?: REASON_LOCKED
-        val label = runCatching {
-            packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
-        }.getOrDefault(pkg)
+        val goHome = intent.getBooleanExtra(EXTRA_GO_HOME, true)
+        val leave: () -> Unit = if (goHome) ::goHome else ::finish
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() = goHome()
+            override fun handleOnBackPressed() = leave()
         })
 
         setContent {
-            MaterialTheme { BlockScreen(label, reason, ::goHome) }
+            MaterialTheme { BlockScreen(label, reason, if (goHome) "홈으로" else "돌아가기", leave) }
         }
     }
 
@@ -51,7 +51,7 @@ class BlockActivity : ComponentActivity() {
 }
 
 @Composable
-private fun BlockScreen(label: String, reason: String, onHome: () -> Unit) {
+private fun BlockScreen(label: String, reason: String, buttonText: String, onLeave: () -> Unit) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.primaryContainer) {
         Column(
             Modifier.fillMaxSize().padding(32.dp),
@@ -68,7 +68,7 @@ private fun BlockScreen(label: String, reason: String, onHome: () -> Unit) {
                 textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(32.dp))
-            Button(onClick = onHome) { Text("홈으로") }
+            Button(onClick = onLeave) { Text(buttonText) }
         }
     }
 }

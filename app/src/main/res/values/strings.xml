@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">디지털 디톡스</string>
-    <string name="accessibility_desc">시간 제한을 넘었거나 잠근 앱이 열리면 차단 화면을 띄웁니다. 화면 내용은 읽지 않고, 어떤 앱이 열렸는지만 확인합니다.</string>
+    <string name="accessibility_desc">시간 제한을 넘었거나 잠근 앱, 쇼츠·릴스, 제한한 웹사이트가 열리면 차단 화면을 띄웁니다. 쇼츠·릴스 화면인지와 브라우저 주소창의 도메인만 확인하고, 다른 내용은 저장하거나 보내지 않습니다.</string>
 </resources>
