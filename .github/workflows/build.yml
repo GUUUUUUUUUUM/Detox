@@ -5,12 +5,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
@@ -21,3 +24,12 @@ jobs:
         with:
           name: digital-detox-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish APK as a release (easy phone download)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk digital-detox.apk
+          gh release create "build-${{ github.run_number }}" digital-detox.apk \
+            --title "Build ${{ github.run_number }}" \
+            --notes "디버그 APK. 폰에서 digital-detox.apk 를 눌러 받아 설치하세요." \
+            --latest
