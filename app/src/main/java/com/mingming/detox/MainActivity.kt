@@ -156,14 +156,20 @@ fun MainScreen() {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
                     val rel = Updater.latest(rules.githubToken)
-                    if (rel.build <= BuildConfig.VERSION_CODE) return@runCatching "이미 최신이에요 (build-${BuildConfig.VERSION_CODE})"
+                    if (rel.build <= BuildConfig.VERSION_CODE) return@runCatching null
                     val apk = File(context.cacheDir, "update.apk")
                     Updater.download(rel, rules.githubToken, apk)
-                    Updater.install(context, apk)
-                    "build-${rel.build} 설치를 시작했어요"
-                }.getOrElse { "업데이트 실패: ${it.message}" }
+                    apk
+                }
             }
-            updateStatus = result
+            updateStatus = result.fold(
+                onSuccess = { apk ->
+                    if (apk == null) "이미 최신이에요 (build-${BuildConfig.VERSION_CODE})"
+                    else runCatching { Updater.install(context, apk); "설치 화면에서 '업데이트'를 눌러 주세요" }
+                        .getOrElse { "설치 화면을 못 열었어요: ${it.message}" }
+                },
+                onFailure = { "업데이트 실패: ${it.message}" }
+            )
             updating = false
         }
     }

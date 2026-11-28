@@ -1,9 +1,8 @@
 package com.mingming.detox
 
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInstaller
+import androidx.core.content.FileProvider
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -46,25 +45,17 @@ object Updater {
         conn.inputStream.use { input -> dest.outputStream().use { input.copyTo(it) } }
     }
 
+    /**
+     * 받은 APK를 시스템 설치 화면에 넘긴다.
+     * (PackageInstaller 세션으로 자기 자신을 업데이트하면 일부 폰에서 INSTALL_FAILED_ABORTED로 막혀서,
+     *  브라우저에서 받은 파일을 여는 것과 같은 표준 방식으로 바꿨다.)
+     */
     fun install(context: Context, apk: File) {
-        val installer = context.packageManager.packageInstaller
-        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-        params.setAppPackageName(context.packageName)
-        val id = installer.createSession(params)
-        installer.openSession(id).use { session ->
-            apk.inputStream().use { input ->
-                session.openWrite("app.apk", 0, apk.length()).use { out ->
-                    input.copyTo(out)
-                    session.fsync(out)
-                }
-            }
-            val intent = Intent(context, InstallReceiver::class.java)
-            val pi = PendingIntent.getBroadcast(
-                context, id, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            )
-            session.commit(pi.intentSender)
-        }
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", apk)
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, "application/vnd.android.package-archive")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
     }
 
     private fun open(url: String, token: String): HttpURLConnection {
