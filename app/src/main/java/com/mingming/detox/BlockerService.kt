@@ -17,6 +17,8 @@ class BlockerService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var rules: RuleStore
+    private lateinit var cover: EntryCover
+    private var lastCoverAt = 0L
 
     private var currentPkg: String? = null
     private var activeTarget: String? = null
@@ -32,6 +34,7 @@ class BlockerService : AccessibilityService() {
     private val periodic = object : Runnable {
         override fun run() {
             tick()
+            currentPkg?.let { if (it == YOUTUBE || it == INSTAGRAM) updateCover(it) else cover.clear() }
             // 앱 단위 제한은 30초마다 다시 확인 (앱을 켜 둔 채 시간이 지나는 경우)
             if (++tickCount % 15 == 0) currentPkg?.let { checkApp(it) }
             handler.postDelayed(this, TICK_MS)
@@ -40,6 +43,7 @@ class BlockerService : AccessibilityService() {
 
     override fun onServiceConnected() {
         rules = RuleStore(this)
+        cover = EntryCover(this)
         rules.clearOldUsage()
         lastTick = SystemClock.elapsedRealtime()
         handler.post(periodic)
@@ -47,11 +51,21 @@ class BlockerService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
+        if (pkg == packageName) return // 내 덮개·차단 화면에서 나온 이벤트는 무시
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             // 키보드 같은 오버레이 창은 무시하고, 실제 앱 전환만 기록
             if (pkg.contains("inputmethod") || pkg.contains("keyboard")) return
             currentPkg = pkg
+            if (pkg != YOUTUBE && pkg != INSTAGRAM) cover.clear()
             checkApp(pkg)
+        }
+        // 시간이 끝났으면 쇼츠·릴스 입구를 덮개로 가린다 (스크롤 따라 자주 갱신)
+        if (pkg == YOUTUBE || pkg == INSTAGRAM) {
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastCoverAt > 150) {
+                lastCoverAt = now
+                updateCover(pkg)
+            }
         }
         // 쇼츠로 넘어가는 순간 등을 빨리 잡기 위해 이벤트 때도 확인 (너무 자주는 말고)
         if (pkg in WATCHED) {
@@ -99,6 +113,18 @@ class BlockerService : AccessibilityService() {
         activeTarget = target
         lastTick = now
         if (target != null) enforce(target)
+    }
+
+    private fun updateCover(pkg: String) {
+        val target = if (pkg == YOUTUBE) RuleStore.SHORTS else RuleStore.REELS
+        val limit = rules.limitMinutes(target)
+        val over = limit > 0 && rules.usedToday(target) >= limit * 60_000L
+        val root = rootInActiveWindow
+        if (!over || root == null || root.packageName?.toString() != pkg) {
+            cover.clear()
+            return
+        }
+        cover.update(pkg, root)
     }
 
     private fun detect(pkg: String, root: AccessibilityNodeInfo): String? = when (pkg) {
@@ -162,6 +188,7 @@ class BlockerService : AccessibilityService() {
 
     override fun onDestroy() {
         handler.removeCallbacks(periodic)
+        cover.clear()
         super.onDestroy()
     }
 
