@@ -51,7 +51,16 @@ class BlockerService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
-        if (pkg == packageName) return // 내 덮개·차단 화면에서 나온 이벤트는 무시
+        if (pkg == packageName) {
+            // 내 덮개에서 나온 이벤트는 무시하고, 내 앱 화면(설정·차단 화면)으로 바뀐 것만 기록
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+                event.className?.toString()?.startsWith("com.mingming.detox.") == true
+            ) {
+                currentPkg = pkg
+                cover.clear()
+            }
+            return
+        }
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             // 키보드 같은 오버레이 창은 무시하고, 실제 앱 전환만 기록
             if (pkg.contains("inputmethod") || pkg.contains("keyboard")) return
